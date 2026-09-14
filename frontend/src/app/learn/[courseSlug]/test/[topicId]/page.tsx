@@ -1,0 +1,1 @@
+import { Suspense } from 'react'; import { TestScreen } from '@/components/screens/student/LearningScreens'; export default async function Page({params}:{params:Promise<{courseSlug:string;topicId:string}>}){const {courseSlug,topicId}=await params;return <Suspense><TestScreen slug={courseSlug} topicId={topicId}/></Suspense>}

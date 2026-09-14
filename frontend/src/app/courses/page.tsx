@@ -1,0 +1,2 @@
+import type { Metadata } from 'next'; import { Suspense } from 'react'; import { CoursesScreen } from '@/components/screens/public/CoursesScreen';
+export const metadata:Metadata={title:'Kurslar',description:'NeoSkill amaliy kurslari katalogi',alternates:{canonical:'/courses'},openGraph:{title:'NeoSkill kurslari',description:'Yo‘nalish, daraja va narx bo‘yicha amaliy kurslarni tanlang.'}}; export default function Page(){return <Suspense><CoursesScreen/></Suspense>}

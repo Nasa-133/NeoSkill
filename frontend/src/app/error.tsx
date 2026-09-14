@@ -1,0 +1,1 @@
+'use client'; import { ErrorState } from '@/components/ui'; export default function Error({reset}:{error:Error&{digest?:string};reset:()=>void}){return <main className="ns-system-page"><ErrorState title="Kutilmagan xatolik yuz berdi" description="Sahifani yuklashda muammo bo‘ldi. Qayta urinib ko‘ring." onRetry={reset}/></main>}

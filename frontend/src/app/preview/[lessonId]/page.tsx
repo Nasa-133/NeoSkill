@@ -1,0 +1,1 @@
+import { LessonPreviewScreen } from '@/components/screens/student/LearningScreens'; export default async function Page({params,searchParams}:{params:Promise<{lessonId:string}>;searchParams:Promise<{course?:string}>}){const [{lessonId},{course}]=await Promise.all([params,searchParams]);return <LessonPreviewScreen slug={course??''} id={lessonId}/>}

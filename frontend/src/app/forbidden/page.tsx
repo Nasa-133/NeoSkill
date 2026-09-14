@@ -1,0 +1,1 @@
+import Link from 'next/link'; export default function Page(){return <main className="ns-system-page"><section className="ns-state"><strong className="ns-system-code">403</strong><h1>Bu bo‘limga kirish yopiq</h1><p>Hisobingizda ushbu sahifani ko‘rish huquqi yo‘q.</p><Link className="ns-link-button" href="/dashboard">Boshqaruv paneliga qaytish</Link></section></main>}

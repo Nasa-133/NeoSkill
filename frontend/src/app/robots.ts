@@ -1,0 +1,1 @@
+import type { MetadataRoute } from 'next'; export default function robots():MetadataRoute.Robots{return {rules:{userAgent:'*',allow:['/','/courses','/about','/contact'],disallow:['/admin','/dashboard','/my-courses','/learn','/profile']}}}

@@ -1,0 +1,181 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "NeoSkill API", "version": "0.1.0" },
+  "paths": {
+    "/api/v1/auth/csrf": {
+      "get": {
+        "operationId": "prepareCsrf",
+        "summary": "Set the browser CSRF cookie before Telegram code exchange",
+        "security": [],
+        "responses": { "200": { "description": "CSRF cookie is ready" } }
+      }
+    },
+    "/api/v1/auth/telegram/exchange": {
+      "post": {
+        "operationId": "exchangeTelegramCode",
+        "summary": "Consume a one-time Telegram code and create a server session",
+        "security": [],
+        "parameters": [
+          {
+            "name": "X-CSRFToken",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["code", "device_id", "device_name"],
+                "additionalProperties": false,
+                "properties": {
+                  "code": { "type": "string", "example": "ABCD-EFGH" },
+                  "device_id": { "type": "string", "format": "uuid" },
+                  "device_name": { "type": "string", "minLength": 1, "maxLength": 64 },
+                  "revoke_device_session_id": { "type": "string", "format": "uuid" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Code consumed and session created" },
+          "400": { "description": "Invalid or expired code" },
+          "403": { "description": "CSRF validation failed" },
+          "409": { "description": "Two-device limit reached; response lists a session to revoke" },
+          "429": { "description": "Verification attempts throttled" }
+        }
+      }
+    },
+    "/api/v1/auth/session": {
+      "get": {
+        "operationId": "getSessionUser",
+        "summary": "Return the current authenticated user",
+        "security": [{ "cookieSession": [] }],
+        "responses": {
+          "200": { "description": "Authenticated user" },
+          "403": { "description": "Authentication required" }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "operationId": "logout",
+        "summary": "Flush the authenticated server session",
+        "security": [{ "cookieSession": [] }],
+        "responses": {
+          "204": { "description": "Session flushed" },
+          "403": { "description": "Authentication or CSRF validation failed" }
+        }
+      }
+    },
+    "/api/v1/auth/telegram/webhook": {
+      "post": {
+        "operationId": "receiveTelegramUpdate",
+        "summary": "Receive authenticated Telegram Bot API updates",
+        "security": [],
+        "parameters": [
+          {
+            "name": "X-Telegram-Bot-Api-Secret-Token",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string", "minLength": 32 }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "type": "object", "additionalProperties": true }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Update accepted or safely ignored" },
+          "400": { "description": "Malformed Telegram update" },
+          "403": { "description": "Webhook secret is missing or invalid" },
+          "502": { "description": "Telegram delivery failed and the update may be retried" },
+          "503": { "description": "Telegram integration is not configured" }
+        }
+      }
+    },
+    "/api/v1/health": {
+      "get": {
+        "operationId": "getLiveness",
+        "summary": "API process liveness; does not check database or frontend readiness",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The API process is serving requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["status", "service"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": { "const": "ok" },
+                    "service": { "const": "neoskill-backend" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/readiness": {
+      "get": {
+        "operationId": "getReadiness",
+        "summary": "API readiness backed by PostgreSQL connectivity",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The API and PostgreSQL are ready",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["status", "service"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": { "const": "ready" },
+                    "service": { "const": "neoskill-backend" }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "PostgreSQL is unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["status", "service"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": { "const": "unavailable" },
+                    "service": { "const": "neoskill-backend" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "cookieSession": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "sessionid"
+      }
+    }
+  }
+}

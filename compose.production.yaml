@@ -1,0 +1,63 @@
+name: neoskill-production
+
+services:
+  database:
+    image: postgres:17.11-alpine3.24
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-neoskill}
+      POSTGRES_USER: ${POSTGRES_USER:-neoskill}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - neoskill-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    environment:
+      APP_ENV: production
+      DJANGO_DEBUG: 'false'
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY is required}
+      # Browser API calls arrive through the frontend container, whose upstream Host is backend.
+      DJANGO_ALLOWED_HOSTS: backend,${DJANGO_ALLOWED_HOSTS:?DJANGO_ALLOWED_HOSTS is required}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?CORS_ALLOWED_ORIGINS is required}
+      DJANGO_SSL_REDIRECT: ${DJANGO_SSL_REDIRECT:-false}
+      POSTGRES_DB: ${POSTGRES_DB:-neoskill}
+      POSTGRES_USER: ${POSTGRES_USER:-neoskill}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_HOST: database
+      POSTGRES_PORT: '5432'
+      MEDIA_ROOT: /var/lib/neoskill/media
+      FRONTEND_URL: ${FRONTEND_URL:?FRONTEND_URL is required}
+    volumes:
+      - neoskill-media:/var/lib/neoskill/media
+    depends_on:
+      database:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: ''
+        NEXT_PUBLIC_DATA_SOURCE: api
+        NEXT_PUBLIC_SITE_URL: ${PUBLIC_SITE_URL:?PUBLIC_SITE_URL is required}
+    restart: unless-stopped
+    environment:
+      PORT: '3000'
+      BACKEND_INTERNAL_URL: http://backend:8000
+    ports:
+      - '${FRONTEND_BIND:-127.0.0.1}:${FRONTEND_PORT:-3000}:3000'
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  neoskill-postgres:
+  neoskill-media:

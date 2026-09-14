@@ -1,0 +1,1 @@
+import Link from 'next/link'; export default function NotFound(){return <main className="ns-system-page"><section className="ns-state"><strong className="ns-system-code">404</strong><h1>Sahifa topilmadi</h1><p>Manzil noto‘g‘ri yoki sahifa ko‘chirilgan bo‘lishi mumkin.</p><Link className="ns-link-button" href="/">Bosh sahifaga qaytish</Link></section></main>}

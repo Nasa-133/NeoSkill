@@ -1,0 +1,55 @@
+name: Backend
+
+on:
+  push:
+    paths: ['backend/**', '.github/workflows/backend.yml']
+  pull_request:
+    paths: ['backend/**', '.github/workflows/backend.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17.11-alpine3.24
+        env:
+          POSTGRES_DB: neoskill
+          POSTGRES_USER: neoskill
+          POSTGRES_PASSWORD: test-only-neoskill-postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U neoskill -d neoskill"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      APP_ENV: test
+      DJANGO_SECRET_KEY: test-only-neoskill-secret-key-0123456789-abcdefghijklmnopqrstuvwxyz
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
+      POSTGRES_DB: neoskill
+      POSTGRES_USER: neoskill
+      POSTGRES_PASSWORD: test-only-neoskill-postgres
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: 5432
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.12.10'
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - run: uv sync --locked
+      - run: make check
+      - name: Build from backend-only context
+        run: docker build --tag neoskill-backend:ci .

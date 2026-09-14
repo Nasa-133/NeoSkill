@@ -1,0 +1,66 @@
+[project]
+name = "neoskill-backend"
+version = "0.1.0"
+description = "Independent NeoSkill business HTTP API"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "Django>=5.2.17,<5.3",
+  "djangorestframework>=3.18,<3.19",
+  "django-cors-headers>=4.9,<5",
+  "gunicorn>=23,<26",
+  "psycopg[binary]>=3.3,<4",
+  "python-dotenv>=1.2,<2",
+  "cryptography>=46,<49",
+]
+
+[dependency-groups]
+dev = [
+  "django-stubs>=5.2,<5.3",
+  "djangorestframework-stubs>=3.16,<4",
+  "hatchling==1.32.0",
+  "jsonschema>=4.25,<5",
+  "mypy>=1.19,<2",
+  "pytest>=9,<10",
+  "pytest-django>=4.12,<5",
+  "ruff>=0.15,<1",
+]
+
+[build-system]
+requires = ["hatchling==1.32.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/neoskill"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/src", "/tests", "/manage.py", "/Makefile", "/README.md", "/pyproject.toml",
+  "/uv.lock", "/openapi.json", "/.python-version", "/.env.example",
+  "/Dockerfile", "/.dockerignore",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = ["**/migrations/*.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "TID"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"frontend" = { msg = "Use public HTTP contracts; do not import frontend internals." }
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["src"]
+plugins = ["mypy_django_plugin.main"]
+
+[tool.django-stubs]
+django_settings_module = "neoskill.config.settings"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+DJANGO_SETTINGS_MODULE = "neoskill.config.test_settings"

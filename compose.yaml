@@ -1,0 +1,56 @@
+name: neoskill
+
+services:
+  database:
+    image: postgres:17.11-alpine3.24
+    env_file:
+      - path: ./backend/.env.example
+      - path: ./backend/.env
+        required: false
+    ports:
+      - '127.0.0.1:${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - neoskill-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  frontend:
+    build:
+      context: ./frontend
+    init: true
+    ports:
+      - '127.0.0.1:${FRONTEND_PORT:-3000}:3000'
+    environment:
+      PORT: '3000'
+      # The browser calls this app's own /api/v1; requests are forwarded here.
+      BACKEND_INTERNAL_URL: http://backend:8000
+    # No depends_on: frontend liveness and build are independent of the API.
+
+  backend:
+    build:
+      context: ./backend
+    init: true
+    ports:
+      - '127.0.0.1:${BACKEND_PORT:-8000}:8000'
+    env_file:
+      - path: ./backend/.env.example
+      - path: ./backend/.env
+        required: false
+    environment:
+      POSTGRES_HOST: database
+      POSTGRES_PORT: '5432'
+      # The frontend proxy reaches the API as http://backend:8000.
+      DJANGO_ALLOWED_HOSTS: backend,localhost,127.0.0.1,[::1]
+      MEDIA_ROOT: /var/lib/neoskill/media
+    volumes:
+      # Uploaded covers and photos must survive an image rebuild.
+      - neoskill-media:/var/lib/neoskill/media
+    # Local defaults only. Production injects its own secret, hosts and HTTPS origins.
+    # No depends_on: API liveness does not need a frontend or database process.
+
+volumes:
+  neoskill-postgres:
+  neoskill-media:

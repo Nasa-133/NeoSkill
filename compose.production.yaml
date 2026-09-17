@@ -1,21 +1,6 @@
 name: neoskill-production
 
 services:
-  database:
-    image: postgres:17.11-alpine3.24
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-neoskill}
-      POSTGRES_USER: ${POSTGRES_USER:-neoskill}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
-    volumes:
-      - neoskill-postgres:/var/lib/postgresql/data
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
-      interval: 5s
-      timeout: 5s
-      retries: 12
-
   backend:
     build:
       context: ./backend
@@ -31,16 +16,13 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-neoskill}
       POSTGRES_USER: ${POSTGRES_USER:-neoskill}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
-      POSTGRES_HOST: database
-      POSTGRES_PORT: '5432'
+      POSTGRES_HOST: ${POSTGRES_HOST:?POSTGRES_HOST is required}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_SSLMODE: ${POSTGRES_SSLMODE:-require}
       MEDIA_ROOT: /var/lib/neoskill/media
       FRONTEND_URL: ${FRONTEND_URL:?FRONTEND_URL is required}
     volumes:
       - neoskill-media:/var/lib/neoskill/media
-    depends_on:
-      database:
-        condition: service_healthy
-
   frontend:
     build:
       context: ./frontend
@@ -59,5 +41,4 @@ services:
         condition: service_healthy
 
 volumes:
-  neoskill-postgres:
   neoskill-media:

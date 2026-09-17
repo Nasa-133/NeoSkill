@@ -75,17 +75,30 @@ def test_complete_postgresql_configuration_is_parsed():
             "POSTGRES_PASSWORD": "production-database-secret",
             "POSTGRES_HOST": "database.internal",
             "POSTGRES_PORT": "5432",
+            "POSTGRES_SSLMODE": "require",
         }
     )
     assert config.database is not None
     assert config.database.name == "neoskill"
     assert config.database.port == 5432
+    assert config.database.sslmode == "require"
 
 
 @pytest.mark.parametrize(
     ("overrides", "message"),
     [
         ({"POSTGRES_DB": "neoskill"}, "incomplete"),
+        (
+            {
+                "POSTGRES_DB": "neoskill",
+                "POSTGRES_USER": "neoskill",
+                "POSTGRES_PASSWORD": "production-database-secret",
+                "POSTGRES_HOST": "database.internal",
+                "POSTGRES_PORT": "5432",
+                "POSTGRES_SSLMODE": "invalid",
+            },
+            "POSTGRES_SSLMODE",
+        ),
         (
             {
                 "POSTGRES_DB": "bad/name",

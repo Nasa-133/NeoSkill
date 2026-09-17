@@ -2,6 +2,7 @@ name: Backend
 
 on:
   push:
+    branches-ignore: [main]
     paths: ['backend/**', '.github/workflows/backend.yml']
   pull_request:
     paths: ['backend/**', '.github/workflows/backend.yml']
@@ -39,6 +40,7 @@ jobs:
       POSTGRES_PASSWORD: test-only-neoskill-postgres
       POSTGRES_HOST: 127.0.0.1
       POSTGRES_PORT: 5432
+      POSTGRES_SSLMODE: disable
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

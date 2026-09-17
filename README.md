@@ -82,15 +82,8 @@ cd frontend
 npm run check
 ```
 
-This runs lint, typecheck, build and tests. Details and standalone Docker commands
-are in [frontend/README.md](frontend/README.md). In `backend/`, start PostgreSQL and
-run `make check` for Ruff, mypy, PostgreSQL-backed pytest, package build and Django
-checks after `uv sync --locked`.
-GitHub Actions verifies each application independently on relevant changes; it
-requires a repository remote before it can run.
-
-Architecture rationale and module ownership are in
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+This runs lint, typecheck, build and tests. In `backend/`, start PostgreSQL and run
+`make check` after `uv sync --locked`.
 
 ## Production deployment
 
@@ -98,21 +91,30 @@ Use the production-specific compose file; it refuses to start without required s
 
 ```sh
 cp .env.production.example .env.production
-# Fill the real domain, a random 50+ character Django secret and PostgreSQL password.
+# Fill the real domain, external PostgreSQL connection and production secrets.
 docker compose --env-file .env.production -f compose.production.yaml build
-docker compose --env-file .env.production -f compose.production.yaml up -d database
 docker compose --env-file .env.production -f compose.production.yaml run --rm backend python manage.py migrate --noinput
 docker compose --env-file .env.production -f compose.production.yaml up -d
 ```
 
-Terminate HTTPS in a reverse proxy that forwards to the configured frontend bind/port. The
-complete first-deploy, admin creation, SMTP, persistent media, verification and rollback steps are
-in [docs/RELEASE_SETUP.md](docs/RELEASE_SETUP.md).
+The production Compose file connects to the external PostgreSQL host from `.env.production`.
+Terminate HTTPS in a reverse proxy that forwards to the configured frontend bind/port.
 
-Product sources remain in `PRODUCT_CONTEXT.md`, `DECISIONS.md`, `DESIGN_SYSTEM.md` and `BACKLOG.md`.
-# NeoSkill
-# NeoSkill
-# NeoSkill
-# NeoSkill
-# NeoSkill
-# NeoSkill
+## GitHub CI/CD
+
+Every push to `main` runs backend and frontend checks. Deployment starts only after both jobs pass.
+Create a GitHub environment named `production` and add these environment secrets:
+
+- `DEPLOY_HOST`: application server hostname or IP
+- `DEPLOY_PORT`: SSH port, normally `22`
+- `DEPLOY_USER`: SSH deployment user
+- `DEPLOY_PATH`: absolute NeoSkill repository path on the server
+- `DEPLOY_SSH_PRIVATE_KEY`: private key dedicated to GitHub Actions
+- `DEPLOY_KNOWN_HOSTS`: trusted server host-key line produced by `ssh-keyscan -H HOST`
+
+Add the repository variable `DEPLOY_ENABLED=true` after all six secrets are configured. Until then,
+CI remains active while the deploy job is safely skipped.
+
+The matching public key must be in the deployment user's `~/.ssh/authorized_keys`. Keep the
+server's `.env.production` outside Git; CI/CD validates it, pulls `main`, builds both images, runs
+migrations and waits for the backend and frontend health checks.

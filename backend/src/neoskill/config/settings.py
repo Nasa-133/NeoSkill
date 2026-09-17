@@ -55,7 +55,7 @@ else:
             "PORT": environment.database.port,
             "CONN_MAX_AGE": 0 if environment.mode == "test" else 60,
             "CONN_HEALTH_CHECKS": True,
-            "OPTIONS": {"connect_timeout": 5},
+            "OPTIONS": {"connect_timeout": 5, "sslmode": environment.database.sslmode},
         }
     }
 AUTH_USER_MODEL = "identity.User"

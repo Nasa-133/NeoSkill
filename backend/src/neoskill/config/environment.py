@@ -15,6 +15,7 @@ class DatabaseEnvironment:
     password: str
     host: str
     port: int
+    sslmode: str
 
 
 @dataclass(frozen=True)
@@ -76,6 +77,10 @@ def _database(values: Mapping[str, str], mode: str) -> DatabaseEnvironment | Non
     if not 1 <= port <= 65535:
         raise ImproperlyConfigured("POSTGRES_PORT must be an integer between 1 and 65535.")
 
+    sslmode = values.get("POSTGRES_SSLMODE", "prefer").strip()
+    if sslmode not in {"disable", "allow", "prefer", "require", "verify-ca", "verify-full"}:
+        raise ImproperlyConfigured("POSTGRES_SSLMODE is invalid.")
+
     password = provided["POSTGRES_PASSWORD"]
     if len(password) < 16:
         raise ImproperlyConfigured("POSTGRES_PASSWORD must contain at least 16 characters.")
@@ -88,6 +93,7 @@ def _database(values: Mapping[str, str], mode: str) -> DatabaseEnvironment | Non
         password=password,
         host=provided["POSTGRES_HOST"],
         port=port,
+        sslmode=sslmode,
     )
 
 

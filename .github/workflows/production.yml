@@ -1,0 +1,122 @@
+name: Production CI/CD
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: neoskill-production
+  cancel-in-progress: false
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17.11-alpine3.24
+        env:
+          POSTGRES_DB: neoskill
+          POSTGRES_USER: neoskill
+          POSTGRES_PASSWORD: test-only-neoskill-postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U neoskill -d neoskill"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      APP_ENV: test
+      DJANGO_SECRET_KEY: test-only-neoskill-secret-key-0123456789-abcdefghijklmnopqrstuvwxyz
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
+      POSTGRES_DB: neoskill
+      POSTGRES_USER: neoskill
+      POSTGRES_PASSWORD: test-only-neoskill-postgres
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: 5432
+      POSTGRES_SSLMODE: disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.12.10'
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - run: uv sync --locked
+      - run: make check
+      - run: docker build --tag neoskill-backend:ci .
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run check
+      - run: docker build --tag neoskill-frontend:ci .
+
+  deploy:
+    if: ${{ vars.DEPLOY_ENABLED == 'true' }}
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+      DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+      DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+    steps:
+      - name: Validate deployment secrets
+        run: |
+          set -eu
+          for name in DEPLOY_HOST DEPLOY_PORT DEPLOY_USER DEPLOY_PATH DEPLOY_SSH_PRIVATE_KEY DEPLOY_KNOWN_HOSTS; do
+            test -n "$(printenv "$name")" || { echo "Missing GitHub production secret: $name"; exit 1; }
+          done
+
+      - name: Configure SSH
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_PRIVATE_KEY" > ~/.ssh/neoskill_deploy
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/neoskill_deploy ~/.ssh/known_hosts
+
+      - name: Deploy verified revision
+        run: |
+          ssh -i ~/.ssh/neoskill_deploy -p "$DEPLOY_PORT" \
+            -o BatchMode=yes -o IdentitiesOnly=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" bash -se -- "$DEPLOY_PATH" <<'REMOTE'
+          set -Eeuo pipefail
+          cd "$1"
+          test -f .env.production
+          git fetch origin main
+          git checkout main
+          git pull --ff-only origin main
+          docker compose --env-file .env.production -f compose.production.yaml config --quiet
+          docker compose --env-file .env.production -f compose.production.yaml build backend frontend
+          docker compose --env-file .env.production -f compose.production.yaml run --rm backend \
+            python manage.py migrate --noinput
+          docker compose --env-file .env.production -f compose.production.yaml up -d \
+            --remove-orphans --wait --wait-timeout 120 backend frontend
+          docker compose --env-file .env.production -f compose.production.yaml ps
+          REMOTE
